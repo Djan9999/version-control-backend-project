@@ -3,9 +3,13 @@ import io.javalin.http.HttpStatus;
 import dto.*;
 import models.*;
 
+import java.util.List;
+import java.util.Map;
+
 public class MainServer {
     public static void main(String[] args) {
 
+        RoleService roleService = new RoleService();
         AuthService authServices = new AuthService();
         DocumentService documentService = new DocumentService();
 
@@ -167,6 +171,102 @@ public class MainServer {
 
             }catch(Exception e){
                 ctx.status(HttpStatus.NOT_FOUND).json("{\"error\": \"" + e.getMessage() + "\"}");
+            }
+        });
+
+        //Взема всички активни документи - за всички роли
+        app.get("/api/documents", ctx ->{
+            try{
+                //извикваме метода без филтър за автор за да вземем всички ACTIVE
+                List<DocumentDTO> documents = documentService.getDocumentList(null);
+                ctx.status(HttpStatus.OK).json(documents);
+            }catch(Exception e){
+                ctx.status(HttpStatus.INTERNAL_SERVER_ERROR).json("{\"error\": \"" + e.getMessage() + "\"}");
+            }
+        });
+
+
+        app.get("/api/my-documents",  ctx ->{
+            try{
+
+                User currentUser = ctx.attribute("user");
+
+                if (currentUser == null) {
+                    ctx.status(HttpStatus.UNAUTHORIZED).json("{\"error\": \"Не сте логнати!\"}");
+                    return;
+                }
+
+                List<DocumentDTO> myDocuments = documentService.getDocumentList(currentUser.getUsername());
+                ctx.status(HttpStatus.OK).json(myDocuments);
+            }catch(Exception e){
+                ctx.status(HttpStatus.INTERNAL_SERVER_ERROR).json("{\"error\": \"" + e.getMessage() + "\"}");
+            }
+        });
+
+        app.get("/api/documents/pending", ctx ->{
+           try{
+               List<PendingVersionDTO> pending = documentService.getPendingVersions();
+               ctx.status(HttpStatus.OK).json(pending);
+           }catch (Exception e)
+           {
+               ctx.status(HttpStatus.INTERNAL_SERVER_ERROR).json("{\"error\": \"" + e.getMessage() + "\"}");
+           }
+        });
+
+        //Потребителя взима новя роля
+        app.post("/api/role-request", ctx ->{
+           try{
+               User user = ctx.attribute("user");
+               Map<String,String> body = ctx.bodyAsClass(Map.class);
+
+               roleService.createRequest(user.getId(),  body.get("requestedRole"));
+
+               ctx.status(HttpStatus.CREATED).json("{\"message\": \"Role request submitted\"}");
+           }catch(Exception e){
+               ctx.status(HttpStatus.BAD_REQUEST).json("{\"error\": \"" + e.getMessage() + "\"}");
+           }
+        });
+
+        //Админ вижда заявките
+        app.get("/api/role-requests", ctx ->{
+            try {
+                List<RoleRequest> pendingRequests = roleService.getPendingRequests();
+
+                ctx.status(HttpStatus.OK).json(pendingRequests);
+            }catch(Exception e){
+                ctx.status(HttpStatus.INTERNAL_SERVER_ERROR).json("{\"error\": \"" + e.getMessage() + "\"}");
+            }
+        });
+
+        //Админ одобрява или отхвърля
+        app.put("/api/role-requests/{id}", ctx ->{
+            int requestId = Integer.parseInt(ctx.pathParam("id"));
+            try{
+                Map<String, String> body = ctx.bodyAsClass(Map.class);
+
+                roleService.handleRequest(requestId, body.get("status"));
+
+                ctx.status(HttpStatus.OK).json("{\"message\": \"Request handled successfully\"}");
+            }catch(Exception e){
+                ctx.status(HttpStatus.BAD_REQUEST).json("{\"error\": \"" + e.getMessage() + "\"}");
+            }
+        });
+
+        //Добавя комента на документа
+        app.post("/api/documents/{id}/comments", ctx ->{
+            int documentId = Integer.parseInt(ctx.pathParam("id"));
+            try{
+                User user = ctx.attribute("user");
+
+                Map<String, Object> body = ctx.bodyAsClass(Map.class);
+                int versionNumber = Integer.parseInt(body.get("versionNumber").toString());
+                String commentText = body.get("comment").toString();
+
+                documentService.addComment(documentId, versionNumber, user.getId(), commentText);
+
+                ctx.status(HttpStatus.CREATED).json("{\"message\": \"Коментарът е добавен успешно\"}");
+            }catch(Exception e){
+                ctx.status(HttpStatus.BAD_REQUEST).json("{\"error\": \"" + e.getMessage() + "\"}");
             }
         });
     }

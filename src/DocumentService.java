@@ -4,6 +4,8 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import dto.DocumentDTO;
+import dto.PendingVersionDTO;
 import models.Document;
 import models.DocumentVersion;
 
@@ -253,4 +255,89 @@ public class DocumentService {
             throw new Exception("Error while retrieving document: " + e.getMessage());
         }
     }
+
+    public List<DocumentDTO> getDocumentList(String authorFilter) throws  Exception
+    {
+        List<DocumentDTO> list = new ArrayList<>();
+
+        //Ако има автор филтрираме по него, Ако няма само гледаме ACTIVE документа
+        String sql = (authorFilter == null)
+                ? "SELECT d.id, d.title, u.username, v.version_number, v.status " +
+                "FROM documents d JOIN users u ON d.created_by = u.id " +
+                "JOIN document_versions v ON d.id = v.document_id " +
+                "WHERE v.status = 'ACTIVE'"
+                : "SELECT d.id, d.title, u.username, v.version_number, v.status " +
+                "FROM documents d JOIN users u ON d.created_by = u.id " +
+                "JOIN document_versions v ON d.id = v.document_id " +
+                "WHERE u.username = ?";
+
+        try(Connection connection = DatabaseManager.getConnection();
+        PreparedStatement preparedStatement = connection.prepareStatement(sql))
+        {
+            if(authorFilter != null)
+            {
+                preparedStatement.setString(1, authorFilter);
+            }
+
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while(resultSet.next())
+            {
+                list.add(new DocumentDTO(
+                        resultSet.getInt("id"),
+                        resultSet.getString("title"),
+                        resultSet.getString("username"),
+                        resultSet.getInt("version_number"),
+                        resultSet.getString("status")
+                ));
+            }
+        }
+
+        return list;
+    }
+
+    public List<PendingVersionDTO> getPendingVersions() throws Exception
+    {
+        List<PendingVersionDTO> list = new ArrayList<>();
+        // Търсим версии, които чакат одобрение
+        String sql = "SELECT d.id AS doc_id, d.title, v.version_number, u.username, v.content, v.created_at " +
+                "FROM document_versions v " +
+                "JOIN documents d ON v.document_id = d.id " +
+                "JOIN users u ON v.created_by = u.id " +
+                "WHERE v.status = 'PENDING_APPROVAL'";
+
+        try(Connection connection = DatabaseManager.getConnection();
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        ResultSet resultSet = preparedStatement.executeQuery())
+        {
+            while(resultSet.next())
+            {
+                list.add(new PendingVersionDTO(
+                        resultSet.getInt("doc_id"),
+                        resultSet.getString("title"),
+                        resultSet.getInt("version_number"),
+                        resultSet.getString("username"),
+                        resultSet.getString("content"),
+                        resultSet.getString("created_at")
+                ));
+            }
+        }
+
+        return list;
+    }
+
+
+    public void addComment(int documentId, int versionNumber, int userId, String comment) throws Exception {
+        String sql = "INSERT INTO document_comments (document_id, version_number, user_id, comment) VALUES (?, ?, ?, ?)";
+
+        try(Connection connection = DatabaseManager.getConnection();
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);)
+        {
+            preparedStatement.setInt(1, documentId);
+            preparedStatement.setInt(2, versionNumber);
+            preparedStatement.setInt(3, userId);
+            preparedStatement.setString(4, comment);
+            preparedStatement.execute();
+        }
+    }
+
 }
