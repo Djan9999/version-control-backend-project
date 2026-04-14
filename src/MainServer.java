@@ -159,6 +159,16 @@ public class MainServer {
 
         });
 
+        app.get("/api/documents/pending", ctx ->{
+           try{
+               List<PendingVersionDTO> pending = documentService.getPendingVersions();
+               ctx.status(HttpStatus.OK).json(pending);
+           }catch (Exception e)
+           {
+               ctx.status(HttpStatus.INTERNAL_SERVER_ERROR).json("{\"error\": \"" + e.getMessage() + "\"}");
+           }
+        });
+
         app.get("/api/documents/{id}", ctx ->{
             int documentId = Integer.parseInt(ctx.pathParam("id"));
 
@@ -203,15 +213,6 @@ public class MainServer {
             }
         });
 
-        app.get("/api/documents/pending", ctx ->{
-           try{
-               List<PendingVersionDTO> pending = documentService.getPendingVersions();
-               ctx.status(HttpStatus.OK).json(pending);
-           }catch (Exception e)
-           {
-               ctx.status(HttpStatus.INTERNAL_SERVER_ERROR).json("{\"error\": \"" + e.getMessage() + "\"}");
-           }
-        });
 
         //Потребителя взима новя роля
         app.post("/api/role-request", ctx ->{
