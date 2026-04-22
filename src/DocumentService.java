@@ -4,7 +4,10 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+
+import dto.CommentDTO;
 import dto.DocumentDTO;
+import dto.DocumentDetailDTO;
 import dto.PendingVersionDTO;
 import models.Document;
 import models.DocumentVersion;
@@ -338,6 +341,63 @@ public class DocumentService {
             preparedStatement.setString(4, comment);
             preparedStatement.execute();
         }
+    }
+
+    //Детайли на док
+    public DocumentDetailDTO getDocumentDetails(int docId) throws Exception
+    {
+        DocumentDetailDTO dto = new DocumentDetailDTO();
+        dto.versions = new ArrayList<>();
+
+        String sql = "SELECT d.id, d.title, u.username as author, v.version_number, v.status, v.content " +
+                "FROM documents d " +
+                "JOIN users u ON d.created_by = u.id " +
+                "JOIN document_versions v ON d.id = v.document_id " +
+                "WHERE d.id = ?";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, docId);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                dto.id = rs.getInt("id");
+                dto.title = rs.getString("title");
+                dto.author = rs.getString("author");
+
+                DocumentDetailDTO.VersionDTO version = new DocumentDetailDTO.VersionDTO(
+                        rs.getInt("version_number"), rs.getString("status"), rs.getString("content")
+                );
+
+                dto.versions.add(version);
+
+                // Ако  ACTIVE = слагаме като основна
+                if (version.status.equals("ACTIVE")) {
+                    dto.activeVersion = version;
+                    dto.activeVersionNumber = version.versionNumber;
+                }
+            }
+        }
+        return dto;
+    }
+
+    // Метод за вземане на коментари
+    public List<CommentDTO> getComments(int docId) throws Exception {
+        List<CommentDTO> comments = new ArrayList<>();
+        String sql = "SELECT dc.id, u.username, dc.comment " +
+                "FROM document_comments dc " +
+                "JOIN users u ON dc.user_id = u.id " +
+                "WHERE dc.document_id = ? ORDER BY dc.created_at DESC";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, docId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                comments.add(new CommentDTO(rs.getInt("id"), rs.getString("username"), rs.getString("comment")));
+            }
+        }
+        return comments;
     }
 
 }

@@ -270,6 +270,29 @@ public class MainServer {
                 ctx.status(HttpStatus.BAD_REQUEST).json("{\"error\": \"" + e.getMessage() + "\"}");
             }
         });
+
+
+        // Обновеният GET за един документ
+        app.get("/api/documents/{id}", ctx -> {
+            int id = Integer.parseInt(ctx.pathParam("id"));
+            try {
+                DocumentDetailDTO doc = documentService.getDocumentDetails(id);
+                ctx.status(HttpStatus.OK).json(doc);
+            } catch (Exception e) {
+                ctx.status(HttpStatus.NOT_FOUND).json("{\"error\": \"Документът не е намерен\"}");
+            }
+        });
+
+        // Новият GET за коментари
+        app.get("/api/documents/{id}/comments", ctx -> {
+            int id = Integer.parseInt(ctx.pathParam("id"));
+            try {
+                List<CommentDTO> comments = documentService.getComments(id);
+                ctx.status(HttpStatus.OK).json(comments);
+            } catch (Exception e) {
+                ctx.status(HttpStatus.INTERNAL_SERVER_ERROR).json("{\"error\": \"" + e.getMessage() + "\"}");
+            }
+        });
     }
 
 }
