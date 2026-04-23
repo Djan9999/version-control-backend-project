@@ -272,7 +272,7 @@ public class MainServer {
         });
 
 
-        // Обновеният GET за един документ
+        // GET за един документ
         app.get("/api/documents/{id}", ctx -> {
             int id = Integer.parseInt(ctx.pathParam("id"));
             try {
@@ -283,7 +283,7 @@ public class MainServer {
             }
         });
 
-        // Новият GET за коментари
+        // GET за коментари
         app.get("/api/documents/{id}/comments", ctx -> {
             int id = Integer.parseInt(ctx.pathParam("id"));
             try {
