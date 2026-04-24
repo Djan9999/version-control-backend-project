@@ -1,0 +1,70 @@
+-- Създаване на базата данни (ако не съществува)
+  DROP DATABASE IF EXISTS project;
+  CREATE DATABASE IF NOT EXISTS project;
+  USE project;
+
+  -- 1. Таблица за потребителите
+  CREATE TABLE IF NOT EXISTS users (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      username VARCHAR(50) NOT NULL UNIQUE,
+      email VARCHAR(100) DEFAULT NULL,
+      password VARCHAR(255) NOT NULL,
+      role VARCHAR(20) DEFAULT 'READER',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- 2. Таблица за документите (основна информация)
+  CREATE TABLE IF NOT EXISTS documents (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      created_by INT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  -- 3. Таблица за версиите на документите (съдържанието)
+  CREATE TABLE IF NOT EXISTS document_versions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      document_id INT NOT NULL,
+      version_number INT NOT NULL,
+      content TEXT NOT NULL,
+      status VARCHAR(50) DEFAULT 'PENDING_APPROVAL',
+      created_by INT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  -- 4. Таблица за одит логове (проследяване на действията)
+  CREATE TABLE IF NOT EXISTS audit_logs (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      action VARCHAR(255) NOT NULL,
+      user_id INT NOT NULL,
+      document_id INT,
+      details TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+  );
+
+  -- 5. Таблица за заявки за нови роли (Role Requests)
+  CREATE TABLE IF NOT EXISTS role_requests (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      requested_role VARCHAR(20) NOT NULL,
+      status VARCHAR(50) DEFAULT 'PENDING',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  -- 6. Таблица за коментарите от рецензентите
+  CREATE TABLE IF NOT EXISTS document_comments (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      document_id INT NOT NULL,
+      version_number INT NOT NULL,
+      user_id INT NOT NULL,
+      comment TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
